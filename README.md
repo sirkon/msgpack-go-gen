@@ -9,7 +9,7 @@ go install github.com/sirkon/msgpack-go-gen
 
 ## What it is about.
 
-There can be circumstances where the structures can have mandatory fields. Something like
+There can be circumstances with whatever puprpose structures with mandatory fields. Something like
 
 ```go
 type Request struct {
@@ -27,7 +27,7 @@ type Request[T any] struct {
 }
 ```
 
-But, it is not always possible – there's a thing called "loads of legacy code", you know.
+But, this is not always possible – there's a thing called "loads of legacy code", you know.
 
 And in Go, you can't just
 
@@ -38,7 +38,7 @@ type Request[T any] struct {
 }
 ```
 
-because it is strictly forbidden.
+because it is explicitly forbidden.
 
 ## How this thing solves the issue.
 
@@ -51,7 +51,7 @@ This code generation solves this at the marshaling level. All you need is to:
    }
    ```
 2. Generate `MarshalMsgPack` with this utilty.
-3. Write a function that append that mandatory field:
+3. Write a function that appends that mandatory field:
    ```go
    func MarshalPayload(dst []byte, p *Payload, mandatory string) ([]byte, error) {
        dst, err := p.MarshalMsgPack(p)
