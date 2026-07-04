@@ -38,7 +38,8 @@ type Request[T any] struct {
 }
 ```
 
-because it is explicitly forbidden.
+because it is explicitly forbidden. And neither [tinylib/msgp](https://github.com/tinylib/msgp), neither 
+[https://github/vmihailenco/msgpack/v5](vmihailenco/msgpack/vXXX) support any kind of "inline" in tags.
 
 ## How this thing solves the issue.
 
