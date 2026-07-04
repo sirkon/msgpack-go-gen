@@ -56,7 +56,8 @@ func job(cli *CLI) error {
 	fset := token.NewFileSet()
 	pkgs, err := packages.Load(
 		&packages.Config{
-			Mode: packages.NeedName | packages.NeedImports | packages.NeedDeps | packages.NeedTypes | packages.NeedTypesInfo,
+			Mode: packages.NeedName | packages.NeedImports | packages.NeedDeps |
+				packages.NeedTypes | packages.NeedTypesInfo | packages.NeedSyntax,
 			Fset: fset,
 		},
 		listOutput.Dir,
@@ -95,10 +96,12 @@ func job(cli *CLI) error {
 		structs[typeName] = nt
 	}
 
-	m, err := gogh.New[*gogh.Imports](
+	m, err := gogh.New[*importer](
 		gogh.GoFmt,
-		func(r *gogh.Imports) *gogh.Imports {
-			return r
+		func(imp *gogh.Imports) *importer {
+			return &importer{
+				imp: imp,
+			}
 		},
 	)
 	if err != nil {
@@ -127,6 +130,7 @@ func job(cli *CLI) error {
 		r := p.Go(destName, gogh.Autogen(appName))
 		g := &generator{
 			fset: fset,
+			pkg:  pkg,
 		}
 		if err := g.generateMarshaler(r, structName, typeDesc); err != nil {
 			return errors.Wrap(err, "generate marshaler for "+structName)
