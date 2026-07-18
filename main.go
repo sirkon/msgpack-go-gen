@@ -24,7 +24,11 @@ func main() {
 
 	parser := kong.Parse(&cli,
 		kong.Name(appName),
-		kong.Description("A tool for generating msgpack decoders for given structures in a given package."),
+		kong.Description(
+			"A tool for generating msgpack decoders for given structures in a given package.\n"+
+				"Struct policies are either StructName or StructName:**, where * is either + or -. StructName:+- \n"+
+				"for example.",
+		),
 		kong.UsageOnError(),
 		kong.ConfigureHelp(kong.HelpOptions{Compact: true}),
 	)
@@ -76,24 +80,28 @@ func job(cli *CLI) error {
 
 	pkg := pkgs[0]
 
-	structs := map[string]*types.Named{}
-	for _, typeName := range cli.Structs {
-		typeDesc := pkg.Types.Scope().Lookup(typeName)
+	plan := map[string]*typeProcessorPlan{}
+
+	for _, structPolicy := range cli.Structs {
+		typeDesc := pkg.Types.Scope().Lookup(structPolicy.Name)
 		if typeDesc == nil {
-			return errors.Newf("type %s not found in the package", typeName)
+			return errors.Newf("type %s not found in the package", structPolicy)
 		}
 
 		nt, ok := typeDesc.Type().(*types.Named)
 		if !ok {
-			return errors.Newf("type %s is not a structure", typeName)
+			return errors.Newf("type %s is not a structure", structPolicy)
 		}
 
 		_, ok = nt.Underlying().(*types.Struct)
 		if !ok {
-			return errors.Newf("type %s is not a structure", typeName)
+			return errors.Newf("type %s is not a structure", structPolicy)
 		}
-
-		structs[typeName] = nt
+		plan[structPolicy.Name] = &typeProcessorPlan{
+			typ:       nt,
+			marshal:   structPolicy.Marshal,
+			unmarshal: structPolicy.Unmarshal,
+		}
 	}
 
 	m, err := gogh.New[*importer](
@@ -114,12 +122,25 @@ func job(cli *CLI) error {
 	}
 
 	// Order struct names alphabetically for the sake of perceptible stability.
-	structNames := slices.Collect(maps.Keys(structs))
+	structNames := slices.Collect(maps.Keys(plan))
 	sort.Strings(structNames)
-	for _, structName := range structNames {
-		typeDesc := structs[structName]
 
-		position := fset.Position(typeDesc.Obj().Pos())
+	g := newGenerator(fset, pkg)
+
+	// Per destination file we keep a pair of renderers: pub holds the public
+	// methods, funcs the private free functions. pub references a block placed
+	// before funcs (via Z) so all methods are rendered before the free
+	// functions regardless of the order they are produced.
+	type fileStreams struct {
+		pub   *goRenderer
+		funcs *goRenderer
+	}
+	files := map[string]*fileStreams{}
+
+	for _, structName := range structNames {
+		structPlan := plan[structName]
+
+		position := fset.Position(structPlan.typ.Obj().Pos())
 		_, fileName := filepath.Split(position.Filename)
 		if path.Ext(fileName) != ".go" {
 			return errors.New("we want Go file extension to be .go, got " + path.Ext(position.Filename))
@@ -127,13 +148,25 @@ func job(cli *CLI) error {
 
 		destName := strings.TrimRight(fileName, ".go") + "_gen.go"
 
-		r := p.Go(destName, gogh.Autogen(appName))
-		g := &generator{
-			fset: fset,
-			pkg:  pkg,
+		fs, ok := files[destName]
+		if !ok {
+			r := p.Go(destName, gogh.Autogen(appName))
+			fs = &fileStreams{funcs: r, pub: r.Z()}
+			files[destName] = fs
 		}
-		if err := g.generateMarshaler(r, structName, typeDesc); err != nil {
-			return errors.Wrap(err, "generate marshaler for "+structName)
+
+		g.pub = fs.pub
+		g.funcs = fs.funcs
+
+		if structPlan.marshal {
+			if err := g.genMarshaler(fs.pub, structName, structPlan.typ); err != nil {
+				return errors.Wrap(err, "generate marshaler for "+structName)
+			}
+		}
+		if structPlan.unmarshal {
+			if err := g.genUnmarshaler(fs.pub, structName, structPlan.typ); err != nil {
+				return errors.Wrap(err, "generate unmarshaler for "+structName)
+			}
 		}
 	}
 
@@ -142,4 +175,10 @@ func job(cli *CLI) error {
 	}
 
 	return nil
+}
+
+type typeProcessorPlan struct {
+	typ       *types.Named
+	marshal   bool
+	unmarshal bool
 }

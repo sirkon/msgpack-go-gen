@@ -7,6 +7,15 @@ Generator for msgpack serialization with the support for manual embedding.
 go install github.com/sirkon/msgpack-go-gen
 ```
 
+## How to use it.
+
+```shell
+msgpack-gen-go -p ./internal/dto Data1 Data2:+- Data3:-+
+```
+
+Here we generate both marshaler and unmarshaler for `Data1`, marshaler only for `Data2` and
+unmarshaler only for `Data3`.
+
 ## What it is about.
 
 There can be circumstances with whatever puprpose structures with mandatory fields. Something like
@@ -67,3 +76,12 @@ This code generation solves this at the marshaling level. All you need is to:
        return dst
    }
    ```
+   
+## Unmarshaler.
+
+Unlike the marshaler, unmarshaler does not have unique features and basically the same
+what you have with `github.com/tinylib/msgp`. I added them just to be full in the sense
+you don't need to have both `msgp` and this thing in same time. The `msgpack-gen-go` relies
+on `msgp` library at that. Although I think of switching to my own lib because some API
+decisions hit performance a bit. the API should be a little bet lower level to achieve
+higher performance. 

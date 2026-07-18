@@ -23,6 +23,16 @@ type Sub struct {
 	Active bool   `msgpack:"active"`
 }
 
+type Flat struct {
+	Name       string `msgpack:"name"`
+	Surname    string `msgpack:"surname"`
+	Patronymic string `msgpack:"patronymic"`
+	City       string `msgpack:"city"`
+	Age        int    `msgpack:"age"`
+	Weight     int    `msgpack:"weight"`
+	Fortune    int    `msgpack:"fortune"`
+}
+
 type Request struct {
 	Hash  string `msgpack:"hash"`
 	Value string `msgpack:"payload"`
