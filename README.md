@@ -80,8 +80,6 @@ This code generation solves this at the marshaling level. All you need is to:
 ## Unmarshaler.
 
 Unlike the marshaler, unmarshaler does not have unique features and basically the same
-what you have with `github.com/tinylib/msgp`. I added them just to be full in the sense
-you don't need to have both `msgp` and this thing in same time. The `msgpack-gen-go` relies
-on `msgp` library at that. Although I think of switching to my own lib because some API
-decisions hit performance a bit. the API should be a little bet lower level to achieve
-higher performance. 
+what you have with `github.com/tinylib/msgp`. Can be a bit faster with proper tuning,
+something like 10-25% faster. That said, it is 2nd grade citizen, it is Marshaling
+that was the main driver of this generator.
