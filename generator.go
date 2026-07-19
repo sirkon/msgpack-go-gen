@@ -47,15 +47,20 @@ type generator struct {
 	// private free functions.
 	funcs *goRenderer
 	pub   *goRenderer
+
+	// simpleAllocCache stores types who need msgpunsafe.SafeBuffer for their
+	// unmarshal.
+	simpleAllocCache map[types.Type]bool
 }
 
 func newGenerator(fset *token.FileSet, pkg *packages.Package) *generator {
 	return &generator{
-		fset:      fset,
-		pkg:       pkg,
-		recvNames: map[*types.Named]string{},
-		fnNames:   map[string]string{},
-		usedNames: map[string]struct{}{},
+		fset:             fset,
+		pkg:              pkg,
+		recvNames:        map[*types.Named]string{},
+		fnNames:          map[string]string{},
+		usedNames:        map[string]struct{}{},
+		simpleAllocCache: map[types.Type]bool{},
 	}
 }
 
@@ -144,4 +149,77 @@ func (g *generator) getFieldCoundOffset(method *types.Func) (int, error) {
 	}
 
 	return 0, errors.New("method AST declaration not found")
+}
+
+// needsBuffer рекурсивно проверяет, содержит ли тип строки или слайсы байт,
+// требующие копирования в SafeBuffer. Результаты кэшируются.
+func (g *generator) needsBuffer(t types.Type) bool {
+	// 1. Проверяем кэш, чтобы не гонять рекурсию по второму кругу
+	if res, ok := g.simpleAllocCache[t]; ok {
+		return res
+	}
+
+	// Защита от бесконечной рекурсии (циклические зависимости структур через поинтеры).
+	// Временно сохраняем false. Если в процессе обхода мы вернемся к этому же типу,
+	// значит, зацикливание произошло не на строке/байтах. Если строка найдется в другой ветке,
+	// кэш перезапишется финальным правильным результатом true.
+	g.simpleAllocCache[t] = false
+
+	switch typ := t.Underlying().(type) {
+	// Базовые типы Go (int, string, bool...)
+	case *types.Basic:
+		// Если это строка (string) — буфер нужен 100%
+		if typ.Kind() == types.String {
+			g.simpleAllocCache[t] = true
+			return true
+		}
+
+	// Слайсы ([]Sub, []byte, []int...)
+	case *types.Slice:
+		// Особый случай: []byte (в go/types это Slice от Basic типа Byte)
+		if basic, ok := typ.Elem().Underlying().(*types.Basic); ok && basic.Kind() == types.Byte {
+			g.simpleAllocCache[t] = true
+			return true
+		}
+		// Для остальных слайсов (например, []Sub) проверяем тип элемента
+		if g.needsBuffer(typ.Elem()) {
+			g.simpleAllocCache[t] = true
+			return true
+		}
+
+	// Динамические мапы (map[string]Sub...)
+	case *types.Map:
+		// Проверяем и ключ мапы, и её значение
+		if g.needsBuffer(typ.Key()) || g.needsBuffer(typ.Elem()) {
+			g.simpleAllocCache[t] = true
+			return true
+		}
+
+	// Поинтеры (*Sub, *string...)
+	case *types.Pointer:
+		if g.needsBuffer(typ.Elem()) {
+			g.simpleAllocCache[t] = true
+			return true
+		}
+
+	// Самое важное: структуры, сгенерированные для полей
+	case *types.Struct:
+		for i := 0; i < typ.NumFields(); i++ {
+			field := typ.Field(i)
+			if g.needsBuffer(field.Type()) {
+				g.simpleAllocCache[t] = true
+				return true
+			}
+		}
+
+	// Массивы фиксированной длины ([16]byte, [4]Sub...)
+	case *types.Array:
+		if g.needsBuffer(typ.Elem()) {
+			g.simpleAllocCache[t] = true
+			return true
+		}
+	}
+
+	// Если дошли сюда — тип «чистый» (только инты, флоаты, булы и т.д.), буфер не нужен
+	return g.simpleAllocCache[t]
 }

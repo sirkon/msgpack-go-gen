@@ -20,6 +20,10 @@ func (i *importer) Msgp() *gogh.ImportAliasControl {
 	return i.imp.Add("github.com/tinylib/msgp/msgp")
 }
 
+func (i *importer) MsgpUnsafe() *gogh.ImportAliasControl {
+	return i.imp.Add("github.com/sirkon/msgpunsafe")
+}
+
 func (i *importer) Imports() *gogh.Imports {
 	return i.imp.Imports()
 }

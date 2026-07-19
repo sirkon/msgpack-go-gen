@@ -14,24 +14,24 @@ import (
 type basicUnmarshalInfo struct {
 	base   string // capitalized name used to build the function identifier
 	goType string // Go type returned by the msgp reader
-	readFn string // name of the msgp.Read*Bytes function
+	takeFn string // name of the msgp.Read*Bytes function
 }
 
 var basicUnmarshalTable = map[types.BasicKind]basicUnmarshalInfo{
-	types.String:  {base: "String", goType: "string", readFn: "ReadStringBytes"},
-	types.Bool:    {base: "Bool", goType: "bool", readFn: "ReadBoolBytes"},
-	types.Int:     {base: "Int", goType: "int", readFn: "ReadIntBytes"},
-	types.Int8:    {base: "Int8", goType: "int8", readFn: "ReadInt8Bytes"},
-	types.Int16:   {base: "Int16", goType: "int16", readFn: "ReadInt16Bytes"},
-	types.Int32:   {base: "Int32", goType: "int32", readFn: "ReadInt32Bytes"},
-	types.Int64:   {base: "Int64", goType: "int64", readFn: "ReadInt64Bytes"},
-	types.Uint:    {base: "Uint", goType: "uint", readFn: "ReadUintBytes"},
-	types.Uint8:   {base: "Uint8", goType: "uint8", readFn: "ReadUint8Bytes"},
-	types.Uint16:  {base: "Uint16", goType: "uint16", readFn: "ReadUint16Bytes"},
-	types.Uint32:  {base: "Uint32", goType: "uint32", readFn: "ReadUint32Bytes"},
-	types.Uint64:  {base: "Uint64", goType: "uint64", readFn: "ReadUint64Bytes"},
-	types.Float32: {base: "Float32", goType: "float32", readFn: "ReadFloat32Bytes"},
-	types.Float64: {base: "Float64", goType: "float64", readFn: "ReadFloat64Bytes"},
+	types.String:  {base: "String", goType: "string", takeFn: "TakeString"},
+	types.Bool:    {base: "Bool", goType: "bool", takeFn: "TakeBool"},
+	types.Int:     {base: "Int", goType: "int", takeFn: "TakeInt"},
+	types.Int8:    {base: "Int8", goType: "int8", takeFn: "TakeInt8"},
+	types.Int16:   {base: "Int16", goType: "int16", takeFn: "TakeInt16"},
+	types.Int32:   {base: "Int32", goType: "int32", takeFn: "TakeInt32"},
+	types.Int64:   {base: "Int64", goType: "int64", takeFn: "TakeInt64"},
+	types.Uint:    {base: "Uint", goType: "uint", takeFn: "TakeUint"},
+	types.Uint8:   {base: "Uint8", goType: "uint8", takeFn: "TakeUint8"},
+	types.Uint16:  {base: "Uint16", goType: "uint16", takeFn: "TakeUint16"},
+	types.Uint32:  {base: "Uint32", goType: "uint32", takeFn: "TakeUint32"},
+	types.Uint64:  {base: "Uint64", goType: "uint64", takeFn: "TakeUint64"},
+	types.Float32: {base: "Float32", goType: "float32", takeFn: "TakeFloat32"},
+	types.Float64: {base: "Float64", goType: "float64", takeFn: "TakeFloat64"},
 }
 
 func (g *generator) genUnmarshaler(r *goRenderer, name string, desc *types.Named) error {
@@ -44,11 +44,24 @@ func (g *generator) genUnmarshaler(r *goRenderer, name string, desc *types.Named
 	}
 
 	m := r.Scope()
+	m.Imports().MsgpUnsafe().Ref("msgpu")
+	m.Imports().Add("unsafe").Ref("unsafe")
 	m.N()
 	m.Let("recv", m.Uniq(g.receiver(name, desc)))
-	m.L(`func ($recv *$0) UnmarshalMsgpack(src []byte) error {`, desc)
-	m.L(`    _, err := $0($recv, src)`, fnName)
-	m.L(`    return err`)
+	m.L(`func ($recv *$0) UnmarshalMsgpack(src []byte, buf *$msgpu.SafeBuffer) (err error) {`, desc)
+	m.L(`    defer func() {`)
+	m.L(`        if r := recover(); r != nil {`)
+	m.L(`            $msgpu.HandleError(r, &err)`)
+	m.L(`        }`)
+	m.L(`    }()`)
+	m.N()
+	m.L(`    ptrSrc := $unsafe.Pointer(unsafe.SliceData(src))`)
+	if g.needsBuffer(desc) {
+		m.L(`    _ = $0($recv, ptrSrc, len(src), buf)`, fnName)
+	} else {
+		m.L(`    _ = $0($recv, ptrSrc, len(src))`, fnName)
+	}
+	m.L(`    return nil`)
 	m.L(`}`)
 
 	return nil
@@ -62,7 +75,7 @@ func (g *generator) ensureUnmarshaler(typ types.Type) string {
 		return fnName
 	}
 
-	fnName := g.uniqueUnmarshalerName(g.unmarshalerBaseName(typ))
+	fnName := g.pub.Uniq(gogh.Private("unmarshal", g.unmarshalerBaseName(typ)))
 	// Register the name before scheduling the body so that recursive types do
 	// not loop forever.
 	g.fnNames[key] = fnName
@@ -137,11 +150,54 @@ func isUnmarshalValueForm(typ types.Type) bool {
 // pointers the value form.
 func (g *generator) genUnmarshalCall(r *goRenderer, lhs string, typ types.Type) {
 	fnName := g.ensureUnmarshaler(typ)
-	if isUnmarshalValueForm(typ) {
-		r.L(`srcOffset, $0, err = $1(src)`, lhs, fnName)
+	basic, ok := typ.(*types.Basic)
+	var isSliceByte bool
+	if !ok {
+		var slice *types.Slice
+		_ = slice
+		if slice, ok = typ.(*types.Slice); ok {
+			basic, ok = typ.(*types.Basic)
+			if ok {
+				ok = basic.Kind() == types.Byte
+				isSliceByte = true
+			}
+		}
+	}
+	if !ok {
+		if isUnmarshalValueForm(typ) {
+			if g.needsBuffer(typ) {
+				r.L(`$0, src = $1(src, lim, buf)`, lhs, fnName)
+				return
+			}
+
+			r.L(`$0, src = $1(src, lim)`, lhs, fnName)
+			return
+		}
+
+		if g.needsBuffer(typ) {
+			r.L(`src = $0(&$1, src, lim, buf)`, fnName, lhs)
+			return
+		}
+		r.L(`src = $0(&$1, src, lim)`, fnName, lhs)
 		return
 	}
-	r.L(`srcOffset, err = $0(&$1, src)`, fnName, lhs)
+
+	r.Imports().MsgpUnsafe().Ref("msgpu")
+	if isSliceByte {
+		r.L(`$0, src = $msgpu.TakeBytes(src, lim, buf)`, lhs)
+		return
+	}
+	basicHandler, ok := basicUnmarshalTable[basic.Kind()]
+	if !ok {
+		panic("unsupported basic type " + basic.String())
+	}
+
+	if g.needsBuffer(typ) {
+		r.L(`$0, src = $msgpu.$1(src, lim, buf)`, lhs, basicHandler.takeFn)
+		return
+	}
+
+	r.L(`$0, src = $msgpu.$1(src, lim)`, lhs, basicHandler.takeFn)
 }
 
 func (g *generator) emitUnmarshaler(typ types.Type) error {
@@ -154,7 +210,7 @@ func (g *generator) emitUnmarshaler(typ types.Type) error {
 
 	switch u := typ.Underlying().(type) {
 	case *types.Basic:
-		return g.emitUnmarshalerScalar(name, typ, u)
+		return nil
 	case *types.Struct:
 		return g.emitUnmarshalerStruct(name, typ, u)
 	case *types.Slice:
@@ -167,55 +223,28 @@ func (g *generator) emitUnmarshaler(typ types.Type) error {
 	}
 }
 
-func (g *generator) emitUnmarshalerScalar(name string, typ types.Type, b *types.Basic) error {
-	info, ok := basicUnmarshalTable[b.Kind()]
-	if !ok {
-		g.errorf(token.NoPos, "unsupported basic kind for unmarshal: %s", typ.String())
-		return errors.Newf("unsupported basic kind: %s", typ.String())
-	}
-
-	r := g.funcs
-	r.Imports().Msgp().Ref("msgp")
-
-	r.N()
-
-	r.L(`func $0(src []byte) (offset int, value $1, err error) {`, name, typ)
-	r.L(`    var raw $0`, info.goType)
-	r.L(`    var tail []byte`)
-	r.L(`    raw, tail, err = $msgp.$0(src)`, info.readFn)
-	r.L(`    if err != nil {`)
-	r.L(`        return 0, value, err`)
-	r.L(`    }`)
-	r.L(`    return len(src) - len(tail), $0(raw), nil`, typ)
-	r.L(`}`)
-	r.N()
-
-	return nil
-}
-
 func (g *generator) emitUnmarshalerStruct(name string, typ types.Type, st *types.Struct) error {
 	r := g.funcs
-	r.Imports().Msgp().Ref("msgp")
+	r.Imports().MsgpUnsafe().Ref("msgpu")
+	r.Imports().Add("unsafe").Ref("unsafe")
 	r.N()
 
-	keyFn := g.ensureUnmarshaler(types.Typ[types.String])
-
-	r.L(`func $0(dst *$1, src []byte) (int, error) {`, name, typ)
+	if g.needsBuffer(typ) {
+		r.L(`func $0(dst *$1, src $unsafe.Pointer, lim int, buf *$msgpu.SafeBuffer) $unsafe.Pointer {`, name, typ)
+	} else {
+		r.L(`func $0(dst *$1, src $unsafe.Pointer, lim int) $unsafe.Pointer {`, name, typ)
+	}
+	r.L(`    var sz  int`)
 	r.L(`    orig := src`)
-	r.L(`    sz, tail, err := $msgp.ReadMapHeaderBytes(src)`)
-	r.L(`    if err != nil {`)
-	r.L(`        return 0, err`)
-	r.L(`    }`)
-	r.L(`    src = tail`)
+	r.L(`    origLim := lim`)
 	r.N()
-	r.L(`    var srcOffset int`)
+	r.L(`    sz, src = $msgpu.TakeMapHeader(src, lim)`)
+	r.L(`    lim = origLim - int(uintptr(src) - uintptr(orig))`)
+	r.N()
 	r.L(`    var key string`)
-	r.L(`    for i := uint32(0); i < sz; i++ {`)
-	r.L(`        srcOffset, key, err = $0(src)`, keyFn)
-	r.L(`        if err != nil {`)
-	r.L(`            return 0, err`)
-	r.L(`        }`)
-	r.L(`        src = src[srcOffset:]`)
+	r.L(`    for i := 0; i < sz; i++ {`)
+	r.L(`        key, src = $msgpu.TakeStringZC(src, lim)`)
+	r.L(`        lim = origLim - int(uintptr(src) - uintptr(orig))`)
 	r.N()
 	r.L(`        switch key {`)
 
@@ -234,21 +263,17 @@ func (g *generator) emitUnmarshalerStruct(name string, typ types.Type, st *types
 			msgName = field.Name()
 		}
 
-		r.L(`        case $0:`, strconv.Quote(msgName))
+		r.L(`        case $0:`, gogh.Q(msgName))
 		g.genUnmarshalCall(r, "dst."+field.Name(), field.Type())
 	}
 
 	r.L(`        default:`)
-	r.Imports().Add("fmt").Ref("fmt")
-	r.L(`            return len(orig) - len(src), $fmt.Errorf("unknown field %q", key)`)
+	r.L(`            panic($msgpu.ErrorUnknownField)`)
 	r.L(`        }`)
-	r.L(`        if err != nil {`)
-	r.L(`            return 0, err`)
-	r.L(`        }`)
-	r.L(`        src = src[srcOffset:]`)
+	r.L(`        lim = origLim - int(uintptr(src) - uintptr(orig))`)
 	r.L(`    }`)
 	r.N()
-	r.L(`    return len(orig) - len(src), nil`)
+	r.L(`    return src`)
 	r.L(`}`)
 	r.N()
 
@@ -257,28 +282,28 @@ func (g *generator) emitUnmarshalerStruct(name string, typ types.Type, st *types
 
 func (g *generator) emitUnmarshalerSlice(name string, typ types.Type, sl *types.Slice) error {
 	r := g.funcs
-	r.Imports().Msgp().Ref("msgp")
+	r.Imports().MsgpUnsafe().Ref("msgpu")
 	r.N()
 
-	r.L(`func $0(dst *$1, src []byte) (int, error) {`, name, typ)
+	if g.needsBuffer(typ) {
+		r.L(`func $0(dst *$1, src $unsafe.Pointer, lim int, buf *$msgpu.SafeBuffer) $unsafe.Pointer {`, name, typ)
+	} else {
+		r.L(`func $0(dst *$1, src $unsafe.Pointer, lim int) $unsafe.Pointer {`, name, typ)
+	}
+	r.L(`    var sz int`)
 	r.L(`    orig := src`)
-	r.L(`    sz, tail, err := $msgp.ReadArrayHeaderBytes(src)`)
-	r.L(`    if err != nil {`)
-	r.L(`        return 0, err`)
-	r.L(`    }`)
-	r.L(`    src = tail`)
+	r.L(`    origLim := lim`)
+	r.N()
+	r.L(`    sz, src = $msgpu.TakeSliceHeader(src, lim)`)
+	r.L(`    lim = origLim - int(uintptr(src) - uintptr(orig))`)
 	r.L(`    result := make($0, sz)`, typ)
-	r.L(`    var srcOffset int`)
-	r.L(`    for i := uint32(0); i < sz; i++ {`)
+	r.L(`    for i := 0; i < sz; i++ {`)
 	g.genUnmarshalCall(r, "result[i]", sl.Elem())
-	r.L(`        if err != nil {`)
-	r.L(`            return 0, err`)
-	r.L(`        }`)
-	r.L(`        src = src[srcOffset:]`)
+	r.L(`        lim = origLim - int(uintptr(src) - uintptr(orig))`)
 	r.L(`    }`)
 	r.L(`    *dst = result`)
 	r.N()
-	r.L(`    return len(orig) - len(src), nil`)
+	r.L(`    return src`)
 	r.L(`}`)
 	r.N()
 
@@ -293,39 +318,31 @@ func (g *generator) emitUnmarshalerMap(name string, typ types.Type, m *types.Map
 	}
 
 	r := g.funcs
-	r.Imports().Msgp().Ref("msgp")
+	r.Imports().MsgpUnsafe().Ref("msgpu")
+	r.Imports().Add("unsafe").Ref("unsafe")
 	r.N()
 
-	keyFn := g.ensureUnmarshaler(m.Key())
+	r.L(`func $0(dst *$1, src $unsafe.Pointer, lim int, buf *$msgpu.SafeBuffer) $unsafe.Pointer {`, name, typ)
 
-	r.L(`func $0(dst *$1, src []byte) (int, error) {`, name, typ)
+	r.L(`    var sz int`)
 	r.L(`    orig := src`)
-	r.L(`    sz, tail, err := $msgp.ReadMapHeaderBytes(src)`)
-	r.L(`    if err != nil {`)
-	r.L(`        return 0, err`)
-	r.L(`    }`)
-	r.L(`    src = tail`)
+	r.L(`    origLim := lim`)
+	r.L(`    sz, src = $msgpu.TakeMapHeader(src, lim)`)
+	r.L(`    lim = origLim - int(uintptr(src) - uintptr(orig))`)
 	r.L(`    result := make($0, sz)`, typ)
-	r.L(`    var srcOffset int`)
 	r.L(`    var key $0`, m.Key())
-	r.L(`    for i := uint32(0); i < sz; i++ {`)
-	r.L(`        srcOffset, key, err = $0(src)`, keyFn)
-	r.L(`        if err != nil {`)
-	r.L(`            return 0, err`)
-	r.L(`        }`)
-	r.L(`        src = src[srcOffset:]`)
+	r.L(`    for i := 0; i < sz; i++ {`)
+	r.L(`        key, src = $msgpu.TakeString(src, lim, buf)`)
+	r.L(`        lim = origLim - int(uintptr(src) - uintptr(orig))`)
 	r.N()
 	r.L(`        var value $0`, m.Elem())
 	g.genUnmarshalCall(r, "value", m.Elem())
-	r.L(`        if err != nil {`)
-	r.L(`            return 0, err`)
-	r.L(`        }`)
-	r.L(`        src = src[srcOffset:]`)
 	r.L(`        result[key] = value`)
+	r.L(`        lim = origLim - int(uintptr(src) - uintptr(orig))`)
 	r.L(`    }`)
 	r.L(`    *dst = result`)
 	r.N()
-	r.L(`    return len(orig) - len(src), nil`)
+	r.L(`    return src`)
 	r.L(`}`)
 	r.N()
 
@@ -334,35 +351,32 @@ func (g *generator) emitUnmarshalerMap(name string, typ types.Type, m *types.Map
 
 func (g *generator) emitUnmarshalerPointer(name string, ptr *types.Pointer) error {
 	r := g.funcs
-	r.Imports().Msgp().Ref("msgp")
+	r.Imports().MsgpUnsafe().Ref("msgpu")
+	r.Imports().Add("unsafe").Ref("unsafe")
 	r.N()
 
 	elem := ptr.Elem()
 	elemFn := g.ensureUnmarshaler(elem)
 
-	r.L(`func $0(src []byte) (int, $1, error) {`, name, ptr)
-	r.L(`    if $msgp.IsNil(src) {`)
-	r.L(`        tail, err := $msgp.ReadNilBytes(src)`)
-	r.L(`        if err != nil {`)
-	r.L(`            return 0, nil, err`)
-	r.L(`        }`)
-	r.L(`        return len(src) - len(tail), nil, nil`)
+	if g.needsBuffer(elem) {
+		r.L(`func $0(src $unsafe.Pointer, lim int, buf *$msgpu.SafeBuffer) (*$1, $unsafe.Pointer) {`, name, elem)
+	} else {
+		r.L(`func $0(src $unsafe.Pointer, lim int) (*$1, $unsafe.Pointer) {`, name, elem)
+	}
+
+	r.L(`    if isNil, src := $msgpu.IsNil(src, lim) {`)
+	r.L(`        return nil, src`)
 	r.L(`    }`)
 	r.N()
 	r.L(`    value := new($0)`, elem)
 	if isUnmarshalValueForm(elem) {
-		r.L(`    srcOffset, raw, err := $0(src)`, elemFn)
-		r.L(`    if err != nil {`)
-		r.L(`        return 0, nil, err`)
-		r.L(`    }`)
+		r.L(`    var raw $0`, elem)
+		r.L(`    raw, src = $0(src, lim)`, elemFn)
 		r.L(`    *value = raw`)
-		r.L(`    return srcOffset, value, nil`)
+		r.L(`    return value, src`)
 	} else {
-		r.L(`    srcOffset, err := $0(value, src)`, elemFn)
-		r.L(`    if err != nil {`)
-		r.L(`        return 0, nil, err`)
-		r.L(`    }`)
-		r.L(`    return srcOffset, value, nil`)
+		r.L(`    src = $0(value, src, lim)`, elemFn)
+		r.L(`    return value, src`)
 	}
 	r.L(`}`)
 	r.N()

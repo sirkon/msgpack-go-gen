@@ -14,6 +14,8 @@ github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/emicklei/proto v1.14.3 h1:zEhlzNkpP8kN6utonKMzlPfIvy82t5Kb9mufaJxSe1Q=
 github.com/emicklei/proto v1.14.3/go.mod h1:rn1FgRS/FANiZdD2djyH7TMA9jdRDcYQ9IEN9yvjX0A=
+github.com/facette/natsort v0.0.0-20181210072756-2cd4dd1e2dcb h1:IT4JYU7k4ikYg1SCxNI1/Tieq/NFvh6dzLdgi7eu0tM=
+github.com/facette/natsort v0.0.0-20181210072756-2cd4dd1e2dcb/go.mod h1:bH6Xx7IW64qjjJq8M2u4dxNaBiDfKK+z/3eGDpXEQhc=
 github.com/fastly/go-utils v0.0.0-20180712184237-d95a45783239 h1:Ghm4eQYC0nEPnSJdVkTrXpu9KtoVCSo1hg7mtI7G9KU=
 github.com/fastly/go-utils v0.0.0-20180712184237-d95a45783239/go.mod h1:Gdwt2ce0yfBxPvZrHkprdPPTTS3N5rwmLE8T22KBXlw=
 github.com/golang/protobuf v1.5.0/go.mod h1:FsONVRAS9T7sI+LIUmWTfcYkHO4aIWwzhcaSAoJOfIk=
@@ -40,6 +42,8 @@ github.com/sirkon/deepequal v0.5.10 h1:iqRLEWLWASErLkqnQsgX+EijWhVkwWvuQCvcfEmFA
 github.com/sirkon/deepequal v0.5.10/go.mod h1:PsB4zwW58QHdYwYNdH2PY8Wsq/L++59Okv+pWygOy6U=
 github.com/sirkon/errors v1.4.6 h1:VhDi7JfjblVdYJNNF+lcm/H6IICc/Be1b4Ez2Ne3WHc=
 github.com/sirkon/errors v1.4.6/go.mod h1:Fpbo4ExgFSu3TZCUNpG1EP7urWhLDgQNIG5/fRLlSWc=
+github.com/sirkon/fenneg v0.9.0 h1:vjJ0v1xP5vsygkhw4HozbXRYrnIUcWgnAthTOba6XLo=
+github.com/sirkon/fenneg v0.9.0/go.mod h1:7abqtrN5oYylYqM/K57qD5i+n6HJIK5F1nguPsWazF8=
 github.com/sirkon/go-format/v2 v2.0.2 h1:56wiEBVsuAn44obNIxF9wvvCfQgdJc3baf4ogl1MVRs=
 github.com/sirkon/go-format/v2 v2.0.2/go.mod h1:YvuK2qmh0vTuALNIEr+VvBirUija3PUayjzref5LEh0=
 github.com/sirkon/gogh v0.27.0 h1:a+YAU84gBRhTPoX+bMCvyuzOlmv4YF+23Vug7wRbCaA=
@@ -48,6 +52,8 @@ github.com/sirkon/jsonexec v0.0.5 h1:CTuwP2XPuh+sZqr0FvV+F6e18bObYZ1UVoLOabMJpTM
 github.com/sirkon/jsonexec v0.0.5/go.mod h1:lwYpOVO4UoyZ7FYe/3MWVyroGzbplLMS1Dhd3VPfATQ=
 github.com/sirkon/message v1.9.0 h1:c0ifs5WRUgmr7w1Oe0CfLcL/x2G+D9LPChVU4ch95oM=
 github.com/sirkon/message v1.9.0/go.mod h1:tV4aDp6dw9VgAJTbMx48U9vTDFYw4YEeBjs6U2b2Wsg=
+github.com/sirkon/msgpunsafe v0.0.3 h1:CJsBF/1U0y69WlkbNbx74VuQCBLUIB5SyRv/iV2QlWU=
+github.com/sirkon/msgpunsafe v0.0.3/go.mod h1:6LkXTpxfjjMXFUlRt80Cb7vMonBo/X3Jw2lB70Aflfs=
 github.com/sirkon/protoast/v2 v2.3.2 h1:Vju5Ian7GQf5WtaYyTNhSepomavQ/AZtAkEKFjH0QKc=
 github.com/sirkon/protoast/v2 v2.3.2/go.mod h1:1u0H+XqHNUGw+dgumaEKuo9T/9DWb7bN1GTAW3+WA0Y=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
@@ -80,6 +86,5 @@ google.golang.org/protobuf v1.26.0-rc.1/go.mod h1:jlhhOSvTdKEhbULTjvd4ARK9grFBp0
 google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
 google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=
 google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
-gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c h1:dUUwHk2QECo/6vqA44rthZ8ie2QXMNeKRTHCNY2nXvo=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=

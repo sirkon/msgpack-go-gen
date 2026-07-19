@@ -6,6 +6,7 @@ import (
 
 	"github.com/sirkon/deepequal"
 	"github.com/sirkon/errors"
+	"github.com/sirkon/msgpunsafe"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -128,7 +129,7 @@ func TestDataUnmarshaler(t *testing.T) {
 	}
 
 	var got Data
-	if err := got.UnmarshalMsgpack(data); err != nil {
+	if err := got.UnmarshalMsgpack(data, msgpunsafe.NewSafeBuffer(128)); err != nil {
 		t.Fatal(errors.Wrap(err, "unmarshal data with generated implementation"))
 	}
 
@@ -152,7 +153,7 @@ func TestDataMarshalUnmarshalRoundTrip(t *testing.T) {
 	}
 
 	var got Data
-	if err := got.UnmarshalMsgpack(data); err != nil {
+	if err := got.UnmarshalMsgpack(data, msgpunsafe.NewSafeBuffer(128)); err != nil {
 		t.Fatal(errors.Wrap(err, "unmarshal data with generated implementation"))
 	}
 
