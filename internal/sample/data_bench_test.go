@@ -86,12 +86,25 @@ func BenchmarkMarshalData(b *testing.B) {
 		})
 
 		b.Run("unmarshal", func(b *testing.B) {
+			b.ReportAllocs()
 			for b.Loop() {
 				for i, packed := range marshalDataSet {
 					var data Data
-					buf := msgpunsafe.NewSafeBuffer(128)
+					buf := msgpunsafe.NewSafeBuffer(96)
 					if err := data.UnmarshalMsgpack(packed, buf); err != nil {
 						b.Fatal(fmt.Errorf("unmarshal data index %d: %w", i, err))
+					}
+				}
+			}
+		})
+
+		b.Run("unmarshal-msgp", func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				for i, packed := range marshalDataSet {
+					var data Data
+					if _, err := data.UnmarshalMsg(packed); err != nil {
+						b.Fatal(fmt.Errorf("unmarshal flat index %d with msgp: %w", i, err))
 					}
 				}
 			}

@@ -323,7 +323,6 @@ func (g *generator) emitUnmarshalerMap(name string, typ types.Type, m *types.Map
 	r.N()
 
 	r.L(`func $0(dst *$1, src $unsafe.Pointer, lim int, buf *$msgpu.SafeBuffer) $unsafe.Pointer {`, name, typ)
-
 	r.L(`    var sz int`)
 	r.L(`    orig := src`)
 	r.L(`    origLim := lim`)
