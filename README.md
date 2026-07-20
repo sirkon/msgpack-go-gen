@@ -91,24 +91,57 @@ that was the main driver of this generator.
 |-------|--------|--------------------------------------|--------------------------------------------------|
 | linux | amd64  | 12th Gen Intel(R) Core(TM) i7-12700K | github.com/sirkon/msgpack-go-gen/internal/sample |
 
+Testing is done over Data and Flat structures:
+
+```go
+type Data struct {
+	Name  string `msgpack:"name"`
+	Count int    `msgpack:"count"`
+
+	Subs     []Sub `msgpack:"subs"`
+	Internal struct {
+		Value float32 `msgpack:"value"`
+	} `msgpack:"internal"`
+	Weights []uint64 `msgpack:"weights"`
+
+	Meta  map[string]Sub  `msgpack:"meta"`
+	Flags map[string]bool `msgpack:"flags"`
+}
+
+type Sub struct {
+	Key    string `msgpack:"key"`
+	Active bool   `msgpack:"active"`
+}
+
+type Flat struct {
+	Name       string `msgpack:"name"`
+	Surname    string `msgpack:"surname"`
+	Patronymic string `msgpack:"patronymic"`
+	City       string `msgpack:"city"`
+	Age        int    `msgpack:"age"`
+	Weight     int    `msgpack:"weight"`
+	Fortune    int    `msgpack:"fortune"`
+}
+```
+
 **Comparison: sirkon vs tinylib/msgp**
 
-Meaning [tinylib/msgp](https://github.com/tinylib/msgp). Another code generator for msgpack.
+Against [tinylib/msgp](https://github.com/tinylib/msgp). Another code generator for msgpack.
 
-| Test      | sirkon         | tinylib/msgp   | Ratio (2nd/1st) |
-|-----------|----------------|----------------|-----------------|
-| marshal   | 18248814 ns/op | 21469219 ns/op | 1.18x           |
-| unmarshal | 33972190 ns/op | 42337165 ns/op | 1.25x           |
-| marshal   | 2176055 ns/op  | 2191606 ns/op  | 1.01x           |
-| unmarshal | 5049333 ns/op  | 7093626 ns/op  | 1.40x           |
+| Test           | sirkon         | tinylib/msgp   | Ratio (2nd/1st) |
+|----------------|----------------|----------------|-----------------|
+| Data/marshal   | 18248814 ns/op | 21469219 ns/op | 1.18x           |
+| Data/unmarshal | 33972190 ns/op | 42337165 ns/op | 1.25x           |
+| Flat/marshal   | 2176055 ns/op  | 2191606 ns/op  | 1.01x           |
+| Flat/unmarshal | 5049333 ns/op  | 7093626 ns/op  | 1.40x           |
 
 **Comparison: sirkon vs vmihailenco/msgpack/v5**
 
-Reflection-based msgpack parsing [library](https://github.com/vmihailenco/msgpack/v5)
+Against reflection-based msgpack parsing [library](https://github.com/vmihailenco/msgpack/v5)
 
-| Test      | sirkon         | vmihailenco     | Ratio (2nd/1st) |
-|-----------|----------------|-----------------|-----------------|
-| marshal   | 18277083 ns/op | 104432308 ns/op | 5.71x           |
-| unmarshal | 34042771 ns/op | 179513434 ns/op | 5.27x           |
-| marshal   | 2180171 ns/op  | 19237086 ns/op  | 8.82x           |
-| unmarshal | 5111117 ns/op  | 28459091 ns/op  | 5.57x           |
+| Test           | sirkon         | vmihailenco     | Ratio (2nd/1st) |
+|----------------|----------------|-----------------|-----------------|
+| Data/marshal   | 18277083 ns/op | 104432308 ns/op | 5.71x           |
+| Data/unmarshal | 34042771 ns/op | 179513434 ns/op | 5.27x           |
+| Flat/marshal   | 2180171 ns/op  | 19237086 ns/op  | 8.82x           |
+| Flat/unmarshal | 5111117 ns/op  | 28459091 ns/op  | 5.57x           |
