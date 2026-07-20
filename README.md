@@ -1,4 +1,5 @@
 # msgpack-go-gen
+
 Generator for msgpack serialization with the support for manual embedding.
 
 ## Installation
@@ -22,8 +23,8 @@ There can be circumstances with whatever puprpose structures with mandatory fiel
 
 ```go
 type Request struct {
-	Mandatory string `msgpack:"mandatory"`
-	// The rest of fields.
+Mandatory string `msgpack:"mandatory"`
+// The rest of fields.
 }
 ```
 
@@ -31,8 +32,8 @@ The rest of fields could have been in their own payload structure of course, lik
 
 ```go
 type Request[T any] struct {
-	Mandatory string `msgpack:"mandatory"`
-	Payload   T      `msgpack:"payload"`
+Mandatory string `msgpack:"mandatory"`
+Payload   T      `msgpack:"payload"`
 }
 ```
 
@@ -42,12 +43,12 @@ And in Go, you can't just
 
 ```go
 type Request[T any] struct {
-	Mandatory string `msgpack:"mandatory"`
-	T
+Mandatory string `msgpack:"mandatory"`
+T
 }
 ```
 
-because it is explicitly forbidden. And neither [tinylib/msgp](https://github.com/tinylib/msgp), neither 
+because it is explicitly forbidden. And neither [tinylib/msgp](https://github.com/tinylib/msgp), neither
 [vmihailenco/msgpack/vXXX](https://github/vmihailenco/msgpack/v5) support any kind of "inline" in tags
 to address this.
 
@@ -76,10 +77,38 @@ This code generation solves this at the marshaling level. All you need is to:
        return dst
    }
    ```
-   
+
 ## Unmarshaler.
 
 Unlike the marshaler, unmarshaler does not have unique features and basically the same
 what you have with `github.com/tinylib/msgp`. Can be a bit faster with proper tuning,
 something like 10-25% faster. That said, it is 2nd grade citizen, it is Marshaling
 that was the main driver of this generator.
+
+## Benchmarks (against msgp)
+
+| goos  | goarch | cpu                                  | pkg                                              |
+|-------|--------|--------------------------------------|--------------------------------------------------|
+| linux | amd64  | 12th Gen Intel(R) Core(TM) i7-12700K | github.com/sirkon/msgpack-go-gen/internal/sample |
+
+**Comparison: sirkon vs tinylib/msgp**
+
+Meaning [tinylib/msgp](https://github.com/tinylib/msgp). Another code generator for msgpack.
+
+| Test      | sirkon         | tinylib/msgp   | Ratio (2nd/1st) |
+|-----------|----------------|----------------|-----------------|
+| marshal   | 18248814 ns/op | 21469219 ns/op | 1.18x           |
+| unmarshal | 33972190 ns/op | 42337165 ns/op | 1.25x           |
+| marshal   | 2176055 ns/op  | 2191606 ns/op  | 1.01x           |
+| unmarshal | 5049333 ns/op  | 7093626 ns/op  | 1.40x           |
+
+**Comparison: sirkon vs vmihailenco/msgpack/v5**
+
+Reflection-based msgpack parsing [library](https://github.com/vmihailenco/msgpack/v5)
+
+| Test      | sirkon         | vmihailenco     | Ratio (2nd/1st) |
+|-----------|----------------|-----------------|-----------------|
+| marshal   | 18277083 ns/op | 104432308 ns/op | 5.71x           |
+| unmarshal | 34042771 ns/op | 179513434 ns/op | 5.27x           |
+| marshal   | 2180171 ns/op  | 19237086 ns/op  | 8.82x           |
+| unmarshal | 5111117 ns/op  | 28459091 ns/op  | 5.57x           |

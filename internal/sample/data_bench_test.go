@@ -70,7 +70,7 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-func BenchmarkMarshalData(b *testing.B) {
+func BenchmarkAgainstData(b *testing.B) {
 	b.Run("sirkon", func(b *testing.B) {
 		b.Run("marshal", func(b *testing.B) {
 			buf := make([]byte, 4096)
@@ -176,8 +176,7 @@ func BenchmarkMarshalData(b *testing.B) {
 	})
 }
 
-func BenchmarkMarshalFlat(b *testing.B) {
-
+func BenchmarkAgainstFlat(b *testing.B) {
 	b.Run("sirkon", func(b *testing.B) {
 		b.Run("marshal", func(b *testing.B) {
 			buf := make([]byte, 4096)
