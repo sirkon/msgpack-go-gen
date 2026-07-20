@@ -124,6 +124,14 @@ type Flat struct {
 }
 ```
 
+Where each pass is a marshal/unmarshal of 65536 structures. So, `Data/marshal` 18248814 ns/op means
+278 ns per one Data.
+
+**Run**
+```shell
+go test  -bench='^BenchmarkAgainst'  -cpu 20 ./internal/sample
+```
+
 **Comparison: sirkon vs tinylib/msgp**
 
 Against [tinylib/msgp](https://github.com/tinylib/msgp). Another code generator for msgpack.
@@ -141,7 +149,7 @@ Against reflection-based msgpack parsing [library](https://github.com/vmihailenc
 
 | Test           | sirkon         | vmihailenco     | Ratio (2nd/1st) |
 |----------------|----------------|-----------------|-----------------|
-| Data/marshal   | 18277083 ns/op | 104432308 ns/op | 5.71x           |
-| Data/unmarshal | 34042771 ns/op | 179513434 ns/op | 5.27x           |
-| Flat/marshal   | 2180171 ns/op  | 19237086 ns/op  | 8.82x           |
-| Flat/unmarshal | 5111117 ns/op  | 28459091 ns/op  | 5.57x           |
+| Data/marshal   | 18336712 ns/op | 103941400 ns/op | 5.67x           |
+| Data/unmarshal | 34384006 ns/op | 179946069 ns/op | 5.23x           |
+| Flat/marshal   | 2176194 ns/op  | 19058167 ns/op  | 8.76x           |
+| Flat/unmarshal | 5041637 ns/op  | 27820408 ns/op  | 5.52x           |
