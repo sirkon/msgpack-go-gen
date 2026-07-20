@@ -85,7 +85,7 @@ what you have with `github.com/tinylib/msgp`. Can be a bit faster with proper tu
 something like 10-25% faster. That said, it is 2nd grade citizen, it is Marshaling
 that was the main driver of this generator.
 
-## Benchmarks (against msgp)
+## Benchmarks
 
 | goos  | goarch | cpu                                  | pkg                                              |
 |-------|--------|--------------------------------------|--------------------------------------------------|
