@@ -9,7 +9,7 @@ require (
 	github.com/sirkon/gogh v0.27.0
 	github.com/sirkon/jsonexec v0.0.5
 	github.com/sirkon/message v1.9.0
-	github.com/sirkon/msgpunsafe v0.0.4
+	github.com/sirkon/msgpunsafe v0.0.5
 	github.com/tinylib/msgp v1.6.4
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	golang.org/x/tools v0.47.0

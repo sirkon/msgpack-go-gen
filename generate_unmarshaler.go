@@ -57,9 +57,9 @@ func (g *generator) genUnmarshaler(r *goRenderer, name string, desc *types.Named
 	m.N()
 	m.L(`    ptrSrc := $unsafe.Pointer(unsafe.SliceData(src))`)
 	if g.needsBuffer(desc) {
-		m.L(`    _ = $0($recv, ptrSrc, len(src), buf)`, fnName)
+		m.L(`    _ = $0($recv, ptrSrc, unsafe.Add(ptrSrc, len(src)), buf)`, fnName)
 	} else {
-		m.L(`    _ = $0($recv, ptrSrc, len(src))`, fnName)
+		m.L(`    _ = $0($recv, ptrSrc, unsafe.Add(ptrSrc, len(src))`, fnName)
 	}
 	m.L(`    return nil`)
 	m.L(`}`)
@@ -230,21 +230,17 @@ func (g *generator) emitUnmarshalerStruct(name string, typ types.Type, st *types
 	r.N()
 
 	if g.needsBuffer(typ) {
-		r.L(`func $0(dst *$1, src $unsafe.Pointer, lim int, buf *$msgpu.SafeBuffer) $unsafe.Pointer {`, name, typ)
+		r.L(`func $0(dst *$1, src $unsafe.Pointer, lim unsafe.Pointer, buf *$msgpu.SafeBuffer) $unsafe.Pointer {`, name, typ)
 	} else {
-		r.L(`func $0(dst *$1, src $unsafe.Pointer, lim int) $unsafe.Pointer {`, name, typ)
+		r.L(`func $0(dst *$1, src $unsafe.Pointer, lim unsafe.Pointer) $unsafe.Pointer {`, name, typ)
 	}
 	r.L(`    var sz  int`)
-	r.L(`    orig := src`)
-	r.L(`    origLim := lim`)
 	r.N()
 	r.L(`    sz, src = $msgpu.TakeMapHeader(src, lim)`)
-	r.L(`    lim = origLim - int(uintptr(src) - uintptr(orig))`)
 	r.N()
 	r.L(`    var key string`)
 	r.L(`    for i := 0; i < sz; i++ {`)
 	r.L(`        key, src = $msgpu.TakeStringZC(src, lim)`)
-	r.L(`        lim = origLim - int(uintptr(src) - uintptr(orig))`)
 	r.N()
 	r.L(`        switch key {`)
 
@@ -270,7 +266,6 @@ func (g *generator) emitUnmarshalerStruct(name string, typ types.Type, st *types
 	r.L(`        default:`)
 	r.L(`            panic($msgpu.ErrorUnknownField)`)
 	r.L(`        }`)
-	r.L(`        lim = origLim - int(uintptr(src) - uintptr(orig))`)
 	r.L(`    }`)
 	r.N()
 	r.L(`    return src`)
@@ -286,20 +281,16 @@ func (g *generator) emitUnmarshalerSlice(name string, typ types.Type, sl *types.
 	r.N()
 
 	if g.needsBuffer(typ) {
-		r.L(`func $0(dst *$1, src $unsafe.Pointer, lim int, buf *$msgpu.SafeBuffer) $unsafe.Pointer {`, name, typ)
+		r.L(`func $0(dst *$1, src $unsafe.Pointer, lim unsafe.Pointer, buf *$msgpu.SafeBuffer) $unsafe.Pointer {`, name, typ)
 	} else {
-		r.L(`func $0(dst *$1, src $unsafe.Pointer, lim int) $unsafe.Pointer {`, name, typ)
+		r.L(`func $0(dst *$1, src $unsafe.Pointer, lim unsafe.Pointer) $unsafe.Pointer {`, name, typ)
 	}
 	r.L(`    var sz int`)
-	r.L(`    orig := src`)
-	r.L(`    origLim := lim`)
 	r.N()
 	r.L(`    sz, src = $msgpu.TakeSliceHeader(src, lim)`)
-	r.L(`    lim = origLim - int(uintptr(src) - uintptr(orig))`)
 	r.L(`    result := make($0, sz)`, typ)
 	r.L(`    for i := 0; i < sz; i++ {`)
 	g.genUnmarshalCall(r, "result[i]", sl.Elem())
-	r.L(`        lim = origLim - int(uintptr(src) - uintptr(orig))`)
 	r.L(`    }`)
 	r.L(`    *dst = result`)
 	r.N()
@@ -322,22 +313,17 @@ func (g *generator) emitUnmarshalerMap(name string, typ types.Type, m *types.Map
 	r.Imports().Add("unsafe").Ref("unsafe")
 	r.N()
 
-	r.L(`func $0(dst *$1, src $unsafe.Pointer, lim int, buf *$msgpu.SafeBuffer) $unsafe.Pointer {`, name, typ)
+	r.L(`func $0(dst *$1, src $unsafe.Pointer, lim unsafe.Pointer, buf *$msgpu.SafeBuffer) $unsafe.Pointer {`, name, typ)
 	r.L(`    var sz int`)
-	r.L(`    orig := src`)
-	r.L(`    origLim := lim`)
 	r.L(`    sz, src = $msgpu.TakeMapHeader(src, lim)`)
-	r.L(`    lim = origLim - int(uintptr(src) - uintptr(orig))`)
 	r.L(`    result := make($0, sz)`, typ)
 	r.L(`    var key $0`, m.Key())
 	r.L(`    for i := 0; i < sz; i++ {`)
 	r.L(`        key, src = $msgpu.TakeString(src, lim, buf)`)
-	r.L(`        lim = origLim - int(uintptr(src) - uintptr(orig))`)
 	r.N()
 	r.L(`        var value $0`, m.Elem())
 	g.genUnmarshalCall(r, "value", m.Elem())
 	r.L(`        result[key] = value`)
-	r.L(`        lim = origLim - int(uintptr(src) - uintptr(orig))`)
 	r.L(`    }`)
 	r.L(`    *dst = result`)
 	r.N()
@@ -358,9 +344,9 @@ func (g *generator) emitUnmarshalerPointer(name string, ptr *types.Pointer) erro
 	elemFn := g.ensureUnmarshaler(elem)
 
 	if g.needsBuffer(elem) {
-		r.L(`func $0(src $unsafe.Pointer, lim int, buf *$msgpu.SafeBuffer) (*$1, $unsafe.Pointer) {`, name, elem)
+		r.L(`func $0(src $unsafe.Pointer, lim unsafe.Pointer, buf *$msgpu.SafeBuffer) (*$1, $unsafe.Pointer) {`, name, elem)
 	} else {
-		r.L(`func $0(src $unsafe.Pointer, lim int) (*$1, $unsafe.Pointer) {`, name, elem)
+		r.L(`func $0(src $unsafe.Pointer, lim unsafe.Pointer) (*$1, $unsafe.Pointer) {`, name, elem)
 	}
 
 	r.L(`    if isNil, src := $msgpu.IsNil(src, lim) {`)

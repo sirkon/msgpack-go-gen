@@ -98,7 +98,23 @@ func BenchmarkMarshalData(b *testing.B) {
 			}
 		})
 
-		b.Run("unmarshal-msgp", func(b *testing.B) {
+	})
+
+	b.Run("tinylib/msgp", func(b *testing.B) {
+		b.Run("marshal", func(b *testing.B) {
+			buf := make([]byte, 4096)
+			for b.Loop() {
+				buf = buf[:0]
+				for i := range dataSet {
+					_, err := dataSet[i].MarshalMsg(buf)
+					if err != nil {
+						b.Fatal(fmt.Errorf("marshal data index %d: %w", i, err))
+					}
+				}
+			}
+		})
+
+		b.Run("unmarshal", func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
 				for i, packed := range marshalDataSet {
@@ -188,8 +204,23 @@ func BenchmarkMarshalFlat(b *testing.B) {
 				}
 			}
 		})
+	})
 
-		b.Run("unmarshal-msgp", func(b *testing.B) {
+	b.Run("tinylib/msgp", func(b *testing.B) {
+		b.Run("marshal", func(b *testing.B) {
+			buf := make([]byte, 4096)
+			for b.Loop() {
+				buf = buf[:0]
+				for i := range flatSet {
+					_, err := flatSet[i].MarshalMsg(buf)
+					if err != nil {
+						b.Fatal(fmt.Errorf("marshal flat index %d: %w", i, err))
+					}
+				}
+			}
+		})
+
+		b.Run("unmarshal", func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
 				for i, packed := range marshalFlatSet {

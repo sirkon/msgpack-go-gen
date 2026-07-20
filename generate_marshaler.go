@@ -125,7 +125,7 @@ func (g *generator) genMarshalerStruct(
 		r.L(`    fieldsCount := $recv.$0($1)`, fieldCountAlterationMethod, fieldCount)
 		r.L(`    if fieldsCount <= 15 {`)
 		r.L(`        $dst = append($dst, byte(0x80|(fieldsCount&0x0f)))`)
-		r.L(`    } else if fieldsCount <= 65535 {`) // Исправили опечатку fieldCount -> fieldsCount
+		r.L(`    } else if fieldsCount <= 65535 {`)
 		r.L(`        $dst = append($dst, 0xde, byte(fieldsCount>>8), byte(fieldsCount))`)
 		r.L(`    } else {`)
 		r.L(`        $dst = append($dst, 0xdf, byte(fieldsCount>>24), byte(fieldsCount>>16), byte(fieldsCount>>8), byte(fieldsCount))`)
@@ -143,7 +143,7 @@ func (g *generator) genMarshalerStruct(
 
 		r.N()
 		r.L(`    // Поле: $0`, msgName)
-		r.L(`    $dst = $msgp.AppendString($dst, $0)`, strconv.Quote(msgName))
+		r.L(`        $dst = append($dst, $0...)`, genMsgpackKeyLiteral(msgName))
 
 		// Вызываем сквозной инлайнер genInlineValue, передавая ему базовый аксессор поля
 		fieldAccessor := r.S("$recv.$0", field.Name())
@@ -222,7 +222,7 @@ func (g *generator) genInlineValue(r *goRenderer, accessor string, typ types.Typ
 		// Рекурсивно фигачим поля вложенной структуры слева направо
 		for _, f := range validFields {
 			r.N()
-			r.L(`        $dst = $msgp.AppendString($dst, $0)`, strconv.Quote(f.msgName))
+			r.L(`        $dst = append($dst, $0...)`, genMsgpackKeyLiteral(f.msgName))
 
 			// Собираем дочерний аксессор через r.S()
 			nextAccessor := r.S("$0.$1", accessor, f.goName)
@@ -527,4 +527,34 @@ func (g *generator) genMarshalerMapElement(r *goRenderer, valName string, elemTy
 	}
 
 	return nil
+}
+
+// genMsgpackKeyLiteral formats the Msgpack header and the field name into a single
+// escaped Go string literal suitable for a direct append call: append(dst, "..."...).
+// It supports fixstr, str 8, str 16, and str 32 according to the Msgpack specification.
+func genMsgpackKeyLiteral(name string) string {
+	var header []byte
+	n := len(name)
+
+	switch {
+	case n <= 31:
+		// fixstr: 0xa0 | length (0-31)
+		header = append(header, byte(0xa0|n))
+	case n <= 255:
+		// str 8: 0xd9 + 1 byte for length
+		header = append(header, 0xd9, byte(n))
+	case n <= 65535:
+		// str 16: 0xda + 2 bytes for Big-Endian length
+		header = append(header, 0xda, byte(n>>8), byte(n))
+	default:
+		// str 32: 0xdb + 4 bytes for Big-Endian length
+		header = append(header, 0xdb, byte(n>>24), byte(n>>16), byte(n>>8), byte(n))
+	}
+
+	// Combine raw Msgpack header bytes with the actual field name string
+	raw := string(header) + name
+
+	// strconv.Quote wraps the string in double quotes and automatically escapes
+	// non-printable binary bytes into safe hex representations like \xXX.
+	return strconv.Quote(raw)
 }
