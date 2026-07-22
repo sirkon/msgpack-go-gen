@@ -1,6 +1,6 @@
 # msgpack-go-gen
 
-Generator for msgpack serialization with the support for manual embedding.
+Code generator for msgpack serialization optimized for Tarantool related workloads.
 
 ## Installation
 
@@ -23,8 +23,8 @@ There can be circumstances with whatever puprpose structures with mandatory fiel
 
 ```go
 type Request struct {
-Mandatory string `msgpack:"mandatory"`
-// The rest of fields.
+    Mandatory string `msgpack:"mandatory"`
+    // The rest of fields.
 }
 ```
 
@@ -32,8 +32,8 @@ The rest of fields could have been in their own payload structure of course, lik
 
 ```go
 type Request[T any] struct {
-Mandatory string `msgpack:"mandatory"`
-Payload   T      `msgpack:"payload"`
+    Mandatory string `msgpack:"mandatory"`
+    Payload   T      `msgpack:"payload"`
 }
 ```
 
@@ -43,8 +43,8 @@ And in Go, you can't just
 
 ```go
 type Request[T any] struct {
-Mandatory string `msgpack:"mandatory"`
-T
+    Mandatory string `msgpack:"mandatory"`
+    T
 }
 ```
 
@@ -80,10 +80,9 @@ This code generation solves this at the marshaling level. All you need is to:
 
 ## Unmarshaler.
 
-Unlike the marshaler, unmarshaler does not have unique features and basically the same
-what you have with `github.com/tinylib/msgp`. Can be a bit faster with proper tuning,
-something like 10-25% faster. That said, it is 2nd grade citizen, it is Marshaling
-that was the main driver of this generator.
+It wasn't the priority, but I decided in the end it would be right not to depend on the other tools
+for unmarshaling. So, it is here. And I put quite an effort to make it fast. Unlike the marshaling,
+which is basically an msgp and even uses their tinylib/msgp/msgp package fo 
 
 ## Benchmarks
 
@@ -153,3 +152,18 @@ Against reflection-based msgpack parsing [library](https://github.com/vmihailenc
 | Data/unmarshal | 34384006 ns/op | 179946069 ns/op | 5.23x           |
 | Flat/marshal   | 2176194 ns/op  | 19058167 ns/op  | 8.76x           |
 | Flat/unmarshal | 5041637 ns/op  | 27820408 ns/op  | 5.52x           |
+
+### Why is it faster than msgp?
+
+As I mentioned, the generated code uses the exact same package that msgp does. Therefore, it should 
+perform exactly the same under identical conditions. However, they are different. This generator produces 
+code designed to rely on application-side buffer pools, which is the optimal way to work with Tarantool. 
+Consequently, buffers do not grow as a rule—there is simply no need for it inthe vast majority of cases.
+ Meanwhile,  msgp doesn't have such a luxury and tries to minimize allocations by computing the resulting 
+size beforehand to make just one allocation instead of a series of them.This comes at a cost, as seen in 
+the first table: a flat structure is really fast to compute, so the difference is non-existent. But 
+performance drops when you need to iterate over the map in `Data`.
+
+Speaking of the unmarshaler: its advantage is genuine and is mostly a consequence of the memory preallocation
+made with msgpunsafe.SafeBuffer, with some minor performance gains attributed to the lower-level code of
+the msgpunsafe routines.
