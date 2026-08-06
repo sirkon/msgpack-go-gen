@@ -159,3 +159,57 @@ func TestDataMarshalUnmarshalRoundTrip(t *testing.T) {
 
 	deepequal.SideBySide(t, "structure Data", want, got)
 }
+
+// TestScalars exercises the needsBuffer==false path: Scalars has no string or
+// []byte fields anywhere, so its unmarshaler free functions take no SafeBuffer
+// and the top-level method calls them without one.
+func TestScalarsUnmarshaler(t *testing.T) {
+	want := Scalars{
+		Count:    7,
+		Big:      -1 << 40,
+		Unsigned: 1 << 40,
+		Pi:       math.Pi,
+		On:       true,
+		Negs:     []int{-5, 0, 5, 1000},
+	}
+	want.Inner.X = 11
+	want.Inner.Y = -22
+
+	// Marshal with an independent implementation, decode with the generated one.
+	data, err := msgpack.Marshal(&want)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "marshal scalars with reference implementation"))
+	}
+
+	var got Scalars
+	if err := got.UnmarshalMsgpack(data, msgpunsafe.NewSafeBuffer(128)); err != nil {
+		t.Fatal(errors.Wrap(err, "unmarshal scalars with generated implementation"))
+	}
+
+	deepequal.SideBySide(t, "structure Scalars", want, got)
+}
+
+func TestScalarsMarshalUnmarshalRoundTrip(t *testing.T) {
+	want := Scalars{
+		Count:    42,
+		Big:      1 << 50,
+		Unsigned: 1 << 50,
+		Pi:       math.E,
+		On:       false,
+		Negs:     []int{1, 2, 3, 4, 5},
+	}
+	want.Inner.X = 100
+	want.Inner.Y = 200
+
+	data, err := want.MarshalMsgpack(nil)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "marshal scalars with generated implementation"))
+	}
+
+	var got Scalars
+	if err := got.UnmarshalMsgpack(data, msgpunsafe.NewSafeBuffer(128)); err != nil {
+		t.Fatal(errors.Wrap(err, "unmarshal scalars with generated implementation"))
+	}
+
+	deepequal.SideBySide(t, "structure Scalars", want, got)
+}

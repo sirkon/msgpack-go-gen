@@ -33,6 +33,22 @@ type Flat struct {
 	Fortune    int    `msgpack:"fortune"`
 }
 
+// Scalars is a struct with only fixed-size fields — no string or []byte
+// anywhere, recursively. It therefore takes the needsBuffer==false path through
+// the generator, exercising the no-buffer unmarshaler signatures.
+type Scalars struct {
+	Count    int     `msgpack:"count"`
+	Big      int64   `msgpack:"big"`
+	Unsigned uint64  `msgpack:"unsigned"`
+	Pi       float64 `msgpack:"pi"`
+	On       bool    `msgpack:"on"`
+	Negs     []int   `msgpack:"negs"`
+	Inner    struct {
+		X int `msgpack:"x"`
+		Y int `msgpack:"y"`
+	} `msgpack:"inner"`
+}
+
 type Request struct {
 	Hash  string `msgpack:"hash"`
 	Value string `msgpack:"payload"`

@@ -59,7 +59,7 @@ func (g *generator) genUnmarshaler(r *goRenderer, name string, desc *types.Named
 	if g.needsBuffer(desc) {
 		m.L(`    _ = $0($recv, ptrSrc, unsafe.Add(ptrSrc, len(src)), buf)`, fnName)
 	} else {
-		m.L(`    _ = $0($recv, ptrSrc, unsafe.Add(ptrSrc, len(src))`, fnName)
+		m.L(`    _ = $0($recv, ptrSrc, unsafe.Add(ptrSrc, len(src)))`, fnName)
 	}
 	m.L(`    return nil`)
 	m.L(`}`)
