@@ -70,8 +70,8 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-func BenchmarkAgainstData(b *testing.B) {
-	b.Run("sirkon", func(b *testing.B) {
+func BenchmarkSirkon(b *testing.B) {
+	b.Run("depth-3", func(b *testing.B) {
 		b.Run("marshal", func(b *testing.B) {
 			buf := make([]byte, 4096)
 			for b.Loop() {
@@ -99,86 +99,7 @@ func BenchmarkAgainstData(b *testing.B) {
 		})
 	})
 
-	b.Run("tinylib/msgp", func(b *testing.B) {
-		b.Run("marshal", func(b *testing.B) {
-			buf := make([]byte, 4096)
-			for b.Loop() {
-				buf = buf[:0]
-				for i := range dataSet {
-					_, err := dataSet[i].MarshalMsg(buf)
-					if err != nil {
-						b.Fatal(fmt.Errorf("marshal data index %d: %w", i, err))
-					}
-				}
-			}
-		})
-
-		b.Run("unmarshal", func(b *testing.B) {
-			b.ReportAllocs()
-			for b.Loop() {
-				for i, packed := range marshalDataSet {
-					var data Data
-					if _, err := data.UnmarshalMsg(packed); err != nil {
-						b.Fatal(fmt.Errorf("unmarshal flat index %d with msgp: %w", i, err))
-					}
-				}
-			}
-		})
-	})
-
-	b.Run("vmihailenco", func(b *testing.B) {
-		b.Run("marshal", func(b *testing.B) {
-			for b.Loop() {
-				for i := range dataSet {
-					_, err := msgpack.Marshal(dataSet[i])
-					if err != nil {
-						b.Fatal(fmt.Errorf("marshal data index %d: %w", i, err))
-					}
-				}
-			}
-		})
-
-		b.Run("unmarshal", func(b *testing.B) {
-			b.ReportAllocs()
-			for b.Loop() {
-				for i, packed := range marshalDataSet {
-					var data Data
-					if err := msgpack.Unmarshal(packed, &data); err != nil {
-						b.Fatal(fmt.Errorf("unmarshal data index %d: %w", i, err))
-					}
-				}
-			}
-		})
-	})
-
-	b.Run("json", func(b *testing.B) {
-		b.Run("marshal", func(b *testing.B) {
-			for b.Loop() {
-				for i := range dataSet {
-					_, err := json.Marshal(dataSet[i])
-					if err != nil {
-						b.Fatal(fmt.Errorf("marshal data index %d into json: %w", i, err))
-					}
-				}
-			}
-		})
-
-		b.Run("unmarshal", func(b *testing.B) {
-			b.ReportAllocs()
-			for b.Loop() {
-				for i, packed := range jsonDataSet {
-					var data Data
-					if err := json.Unmarshal(packed, &data); err != nil {
-						b.Fatal(fmt.Errorf("unmarshal data index %d from json: %w", i, err))
-					}
-				}
-			}
-		})
-	})
-}
-
-func BenchmarkAgainstFlat(b *testing.B) {
-	b.Run("sirkon", func(b *testing.B) {
+	b.Run("flat", func(b *testing.B) {
 		b.Run("marshal", func(b *testing.B) {
 			buf := make([]byte, 4096)
 			for b.Loop() {
@@ -205,8 +126,37 @@ func BenchmarkAgainstFlat(b *testing.B) {
 			}
 		})
 	})
+}
 
-	b.Run("tinylib/msgp", func(b *testing.B) {
+func BenchmarkTinylibMsgp(b *testing.B) {
+	b.Run("depth-3", func(b *testing.B) {
+		b.Run("marshal", func(b *testing.B) {
+			buf := make([]byte, 4096)
+			for b.Loop() {
+				buf = buf[:0]
+				for i := range dataSet {
+					_, err := dataSet[i].MarshalMsg(buf)
+					if err != nil {
+						b.Fatal(fmt.Errorf("marshal data index %d: %w", i, err))
+					}
+				}
+			}
+		})
+
+		b.Run("unmarshal", func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				for i, packed := range marshalDataSet {
+					var data Data
+					if _, err := data.UnmarshalMsg(packed); err != nil {
+						b.Fatal(fmt.Errorf("unmarshal flat index %d with msgp: %w", i, err))
+					}
+				}
+			}
+		})
+	})
+
+	b.Run("flat", func(b *testing.B) {
 		b.Run("marshal", func(b *testing.B) {
 			buf := make([]byte, 4096)
 			for b.Loop() {
@@ -233,7 +183,35 @@ func BenchmarkAgainstFlat(b *testing.B) {
 		})
 	})
 
-	b.Run("vmihailenco", func(b *testing.B) {
+}
+
+func BenchmarkVMihailenco(b *testing.B) {
+	b.Run("depth-3", func(b *testing.B) {
+		b.Run("marshal", func(b *testing.B) {
+			for b.Loop() {
+				for i := range dataSet {
+					_, err := msgpack.Marshal(dataSet[i])
+					if err != nil {
+						b.Fatal(fmt.Errorf("marshal data index %d: %w", i, err))
+					}
+				}
+			}
+		})
+
+		b.Run("unmarshal", func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				for i, packed := range marshalDataSet {
+					var data Data
+					if err := msgpack.Unmarshal(packed, &data); err != nil {
+						b.Fatal(fmt.Errorf("unmarshal data index %d: %w", i, err))
+					}
+				}
+			}
+		})
+	})
+
+	b.Run("flat", func(b *testing.B) {
 		b.Run("marshal", func(b *testing.B) {
 			for b.Loop() {
 				for i := range flatSet {
@@ -258,7 +236,35 @@ func BenchmarkAgainstFlat(b *testing.B) {
 		})
 	})
 
-	b.Run("json", func(b *testing.B) {
+}
+
+func BenchmarkStdJSON(b *testing.B) {
+	b.Run("depth-3", func(b *testing.B) {
+		b.Run("marshal", func(b *testing.B) {
+			for b.Loop() {
+				for i := range dataSet {
+					_, err := json.Marshal(dataSet[i])
+					if err != nil {
+						b.Fatal(fmt.Errorf("marshal data index %d into json: %w", i, err))
+					}
+				}
+			}
+		})
+
+		b.Run("unmarshal", func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				for i, packed := range jsonDataSet {
+					var data Data
+					if err := json.Unmarshal(packed, &data); err != nil {
+						b.Fatal(fmt.Errorf("unmarshal data index %d from json: %w", i, err))
+					}
+				}
+			}
+		})
+	})
+
+	b.Run("flat", func(b *testing.B) {
 		b.Run("marshal", func(b *testing.B) {
 			for b.Loop() {
 				for i := range flatSet {
