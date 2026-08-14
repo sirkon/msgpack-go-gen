@@ -167,3 +167,10 @@ performance drops when you need to iterate over the map in `Data`.
 Speaking of the unmarshaler: its advantage is genuine and is mostly a consequence of the memory preallocation
 made with msgpunsafe.SafeBuffer, with some minor performance gains attributed to the lower-level code of
 the msgpunsafe routines.
+
+## How to fix generator errors and improve additional functionality.
+
+- Write a structure in [needfix.go](./internal/sample/needfix.go) and describe in its comment
+ what's wrong with it or what should the code be like.
+- Prompt your model with .contexts/NEEDFIX.md ("do @.contexts/NEEDFIX.md")
+
